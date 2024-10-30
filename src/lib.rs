@@ -1,14 +1,16 @@
+pub mod models;
+pub mod perplexity;
+
 use crate::errors::{PerplexityError, Result};
 use reqwest;
 use serde_json::{self, json};
 use std::env;
-use crate::errors::{PerplexityError, Result};
-
-mod perplexity;
 
 pub use errors::{PerplexityError, Result};
-pub use perplexity::{Perplexity, PerplexityBuilder};
+pub use perplexity::{Perplexity, StreamEvent, Usage, Choice, Message, Delta};
+pub use models::Model;
 
+#[derive(Debug)]
 pub struct PerplexityBuilder {
     api_key: Option<String>,
     model: String,
