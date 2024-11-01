@@ -1,3 +1,4 @@
+use crate::errors::Result;
 use reqwest;
 use serde_json::{self, json};
 use std::env;
@@ -23,7 +24,7 @@ impl Perplexity {
     }
 
     /// Sends a query to the Perplexity API and returns the response.
-    pub async fn query(&self, query: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn query(&self, query: &str) -> Result<String> {
         let mut request = self
             .client
             .post("https://api.perplexity.ai/chat/completions")
