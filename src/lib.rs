@@ -2,10 +2,6 @@ pub mod errors;
 pub mod models;
 pub mod perplexity;
 
-use reqwest;
-use serde_json::{self, json};
-use std::env;
-
 pub use crate::errors::{PerplexityError, Result};
 pub use crate::models::Model;
 pub use crate::perplexity::{Choice, Delta, Message, Perplexity, StreamEvent, Usage};
@@ -49,28 +45,10 @@ impl PerplexityBuilder {
     }
 }
 
-#[derive(Debug)]
-pub struct Perplexity {
-    api_key: Option<String>,
-    model: String,
-    client: reqwest::Client,
-}
-
 impl Perplexity {
     pub fn builder() -> PerplexityBuilder {
         PerplexityBuilder::new()
     }
-        pub fn new(api_key: Option<String>, model: Option<String>) -> Self {
-            let api_key = api_key.or_else(|| env::var("PERPLEXITY_API_KEY").ok());
-            let model = model.unwrap_or_else(|| "llama-3.1-sonar-large-128k-online".to_string());
-            Self {
-                api_key,
-                model,
-                client: reqwest::Client::new(),
-            }
-        }
-
-        pub async fn query(&self, query: &str) -> Result<String, Box<dyn std::error::Error>> {
             let mut request = self
                 .client
                 .post("https://api.perplexity.ai/chat/completions")
