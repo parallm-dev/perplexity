@@ -49,5 +49,4 @@ impl Perplexity {
     pub fn builder() -> PerplexityBuilder {
         PerplexityBuilder::new()
     }
-    }
 }
