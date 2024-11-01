@@ -1,14 +1,14 @@
+pub mod errors;
 pub mod models;
 pub mod perplexity;
 
-use crate::errors::{PerplexityError, Result};
 use reqwest;
 use serde_json::{self, json};
 use std::env;
 
-pub use errors::{PerplexityError, Result};
-pub use perplexity::{Perplexity, StreamEvent, Usage, Choice, Message, Delta};
-pub use models::Model;
+pub use crate::errors::{PerplexityError, Result};
+pub use crate::models::Model;
+pub use crate::perplexity::{Choice, Delta, Message, Perplexity, StreamEvent, Usage};
 
 #[derive(Debug)]
 pub struct PerplexityBuilder {
@@ -45,11 +45,7 @@ impl PerplexityBuilder {
             .or_else(|| env::var("PERPLEXITY_API_KEY").ok())
             .ok_or(PerplexityError::ApiKeyNotSet)?;
 
-        Ok(Perplexity {
-            api_key: Some(api_key),
-            model: self.model,
-            client: reqwest::Client::new(),
-        })
+        Ok(Perplexity::new(Some(api_key), Some(self.model)))
     }
 }
 
@@ -64,19 +60,6 @@ impl Perplexity {
     pub fn builder() -> PerplexityBuilder {
         PerplexityBuilder::new()
     }
-
-    use reqwest;
-    use serde_json::{self, json};
-    use std::env;
-
-    #[derive(Debug)]
-    pub struct Perplexity {
-        api_key: Option<String>,
-        model: String,
-        client: reqwest::Client,
-    }
-
-    impl Perplexity {
         pub fn new(api_key: Option<String>, model: Option<String>) -> Self {
             let api_key = api_key.or_else(|| env::var("PERPLEXITY_API_KEY").ok());
             let model = model.unwrap_or_else(|| "llama-3.1-sonar-large-128k-online".to_string());
