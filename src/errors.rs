@@ -1,6 +1,3 @@
-use std::error::Error;
-use std::fmt;
-
 pub type Result<T> = std::result::Result<T, PerplexityError>;
 
 #[derive(Debug, thiserror::Error)]
