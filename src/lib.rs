@@ -1,3 +1,5 @@
+use std::env;
+
 pub mod errors;
 pub mod models;
 pub mod perplexity;
