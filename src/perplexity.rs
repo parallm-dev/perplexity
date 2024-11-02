@@ -1,4 +1,5 @@
-use crate::errors::Result;
+use crate::errors::{PerplexityError, Result};
+use crate::sonar::SonarModel;
 use reqwest;
 use serde_json::{self, json};
 use std::env;
@@ -8,14 +9,14 @@ use std::env;
 pub struct Perplexity {
     api_key: Option<String>,
     client: reqwest::Client,
-    model: String,
+    model: SonarModel,
 }
 
 impl Perplexity {
     /// Creates a new instance of the Perplexity client.
-    pub fn new(api_key: Option<String>, model: Option<String>) -> Self {
+    pub fn new(api_key: Option<String>, model: Option<SonarModel>) -> Self {
         let api_key = api_key.or_else(|| env::var("PERPLEXITY_API_KEY").ok());
-        let model = model.unwrap_or_else(|| String::from("llama-3.1-sonar-large-128k-online"));
+        let model = model.unwrap_or(SonarModel::Large);
         Self {
             api_key,
             client: reqwest::Client::new(),
@@ -101,4 +102,44 @@ pub struct Message {
 pub struct Delta {
     pub role: String,
     pub content: String,
+}
+
+#[derive(Debug)]
+pub struct PerplexityBuilder {
+    api_key: Option<String>,
+    model: SonarModel,
+}
+
+impl PerplexityBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn api_key(mut self, api_key: impl Into<String>) -> Self {
+        self.api_key = Some(api_key.into());
+        self
+    }
+
+    pub fn model(mut self, model: SonarModel) -> Self {
+        self.model = model;
+        self
+    }
+
+    pub fn build(self) -> Result<Perplexity> {
+        let api_key = self
+            .api_key
+            .or_else(|| env::var("PERPLEXITY_API_KEY").ok())
+            .ok_or(PerplexityError::ApiKeyNotSet)?;
+
+        Ok(Perplexity::new(Some(api_key), Some(self.model)))
+    }
+}
+
+impl Default for PerplexityBuilder {
+    fn default() -> Self {
+        Self {
+            api_key: None,
+            model: SonarModel::SonarLargeOnline,
+        }
+    }
 }
