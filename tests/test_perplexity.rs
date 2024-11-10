@@ -1,10 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use client_perplexity::perplexity::Perplexity;
+    use perplexity::{Perplexity, SonarModel};
 
     #[cfg(test)]
     mod test_utils {
-
         use tokio::runtime::Runtime;
 
         pub(crate) fn setup_runtime() -> Runtime {
@@ -15,16 +14,17 @@ mod tests {
         }
     }
 
-    fn main() {
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
         let rt = test_utils::setup_runtime();
         rt.block_on(async {
-            let perplexity = Perplexity::new(None);
-            let result = perplexity.query("What is the capital of France?").await;
-            if let Ok(response) = result {
-                println!("Response: {}", response);
-            } else {
-                println!("Error occurred");
-            }
-        });
+            let perplexity = Perplexity::builder()
+                // .api_key("your-api-key-here") # default env PERPLEXITY_API_KEY
+                .model(SonarModel::Large)
+                .build()?;
+
+            let response = perplexity.query("What is the capital of France?").await?;
+            println!("Response: {}", response);
+            Ok(())
+        })
     }
 }

@@ -1,8 +1,10 @@
 use crate::errors::{PerplexityError, Result};
 use crate::sonar::SonarModel;
+use futures::{Stream, StreamExt};
 use reqwest;
 use serde_json::{self, json};
 use std::env;
+use tokio::runtime::Runtime;
 
 /// The main struct for interacting with the Perplexity API.
 #[derive(Debug)]
@@ -13,19 +15,8 @@ pub struct Perplexity {
 }
 
 impl Perplexity {
-    /// Creates a new instance of the Perplexity client.
-    pub fn new(api_key: Option<String>, model: Option<SonarModel>) -> Self {
-        let api_key = api_key.or_else(|| env::var("PERPLEXITY_API_KEY").ok());
-        let model = model.unwrap_or(SonarModel::Large);
-        Self {
-            api_key,
-            client: reqwest::Client::new(),
-            model,
-        }
-    }
-
     /// Sends a query to the Perplexity API and returns the response.
-    pub async fn query(&self, query: &str) -> Result<String> {
+    pub async fn query(&self, query: &str) -> impl Stream<Item = Result<String>> {
         let mut request = self
             .client
             .post("https://api.perplexity.ai/chat/completions")
@@ -33,32 +24,53 @@ impl Perplexity {
             .json(&json!({
                 "model": self.model,
                 "messages": [{"role": "user", "content": query}],
-                "stream": true,
+                "stream": true
             }));
 
         if let Some(api_key) = &self.api_key {
             request = request.header("Authorization", format!("Bearer {}", api_key));
         }
 
-        let mut response = request.send().await?;
-        let mut full_content = String::new();
-        let mut buffer = String::new();
+        let stream = async_stream::try_stream! {
+            let mut response = request.send().await?;
+            let mut buffer = String::new();
 
-        while let Some(chunk) = response.chunk().await? {
-            buffer.push_str(&String::from_utf8_lossy(&chunk));
-            for line in buffer.lines() {
-                if let Some(json) = line.strip_prefix("data: ") {
-                    if let Ok(event) = serde_json::from_str::<StreamEvent>(json) {
-                        if let Some(choice) = event.choices.first() {
-                            full_content.push_str(&choice.delta.content);
+            while let Some(chunk) = response.chunk().await? {
+                buffer.push_str(&String::from_utf8_lossy(&chunk));
+                for line in buffer.lines() {
+                    if let Some(json) = line.strip_prefix("data: ") {
+                        if let Ok(event) = serde_json::from_str::<StreamEvent>(json) {
+                            if let Some(choice) = event.choices.first() {
+                                yield choice.delta.content.clone();
+                            }
                         }
                     }
                 }
+                buffer.clear();
             }
-            buffer.clear();
-        }
+        };
 
-        Ok(full_content)
+        stream
+    }
+
+    /// Sends a synchronous query to the Perplexity API and returns the response.
+    pub fn result(&self, query: &str) -> Result<String> {
+        match Runtime::new() {
+            Ok(rt) => {
+                let stream = rt.block_on(self.query(query));
+                let mut result = String::new();
+                rt.block_on(async {
+                    let mut stream = Box::pin(stream);
+                    while let Some(chunk) = stream.next().await {
+                        if let Ok(content) = chunk {
+                            result.push_str(&content);
+                        }
+                    }
+                });
+                Ok(result)
+            }
+            Err(e) => Err(PerplexityError::IoError(e)),
+        }
     }
 }
 
@@ -131,7 +143,11 @@ impl PerplexityBuilder {
             .or_else(|| env::var("PERPLEXITY_API_KEY").ok())
             .ok_or(PerplexityError::ApiKeyNotSet)?;
 
-        Ok(Perplexity::new(Some(api_key), Some(self.model)))
+        Ok(Perplexity {
+            api_key: Some(api_key),
+            client: reqwest::Client::new(),
+            model: self.model,
+        })
     }
 }
 
@@ -139,7 +155,7 @@ impl Default for PerplexityBuilder {
     fn default() -> Self {
         Self {
             api_key: None,
-            model: SonarModel::SonarLargeOnline,
+            model: SonarModel::Small,
         }
     }
 }

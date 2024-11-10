@@ -20,4 +20,6 @@ pub enum PerplexityError {
     BadRequest(String),
     #[error("Server error: {0}")]
     ServerError(String),
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
 }

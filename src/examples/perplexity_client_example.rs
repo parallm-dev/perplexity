@@ -4,7 +4,7 @@ use perplexity::{Perplexity, Result};
 async fn main() -> Result<()> {
     let client = Perplexity::builder()
         // .api_key("your-api-key-here") # default env PERPLEXITY_API_KEY
-        .model("custom-model-name")
+        .model(SonarModel::Large)
         .build()?;
 
     let response = client.query("What is the capital of France?").await?;
